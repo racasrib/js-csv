@@ -34,6 +34,7 @@ Aquest projecte llegeix dades d'un arxiu CSV publicat en una URL (p.e. des de Go
 
 <!-- Script principal -->
 <script type="module" src="script.js"></script>
+```
 
 ## Exemple de CSV
 
