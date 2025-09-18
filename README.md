@@ -45,4 +45,4 @@ Projecte generat amb ajuda de [ChatGPT](https://chat.openai.com), però tot el c
 
 ## Llicència
 
-Vegeu el fitxer [LICENSE](./LICENSE).
+Aquest projecte està disponible sota la [Llicència Pública de la Unió Europea (EUPL) v1.2](https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12).
