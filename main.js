@@ -1,20 +1,18 @@
-// --- Start processing when the document is ready ---
 window.addEventListener('DOMContentLoaded', processarTotsElsLectors);
 
-// --- Use a Map to store the current data for each container ---
-// This allows the event listeners to always have access to the latest data.
+// Magatzem central per a les dades més recents de cada contenidor.
 const dadesPerContenidor = new Map();
 
 /**
- * Main function that finds all CSV reader components and initializes them.
+ * Troba tots els components lectors de CSV i els inicialitza.
  */
 function processarTotsElsLectors() {
   const contenidors = document.querySelectorAll('.lector-csv');
   contenidors.forEach(contenidor => {
-    // 1. Initialize the UI for each container ONCE.
+    // 1. Inicialitza la interfície de cada contenidor UNA SOLA VEGADA.
     inicialitzarContenidor(contenidor);
 
-    // 2. Set up the periodic refresh if specified.
+    // 2. Configura el refresc periòdic si està especificat.
     const refresh = parseInt(contenidor.getAttribute('data-refresh'), 10);
     if (!isNaN(refresh) && refresh > 0) {
       setInterval(async () => {
@@ -22,22 +20,16 @@ function processarTotsElsLectors() {
           const url = contenidor.getAttribute('data-url');
           if (!url) return;
 
-          // Fetch new data
           const novesDades = await llegirCSV(url);
-          dadesPerContenidor.set(contenidor, novesDades); // Update shared data
+          dadesPerContenidor.set(contenidor, novesDades); // Actualitza el magatzem central
 
-          // --- FIX APPLIED HERE ---
-          // 1. Refresh the main data view (as before)
+          // Refresca la vista de dades i els suggeriments dels filtres
           refrescarVista(contenidor);
-          
-          // 2. ALSO refresh the filter suggestion dropdowns with the new data
           const campsFiltrables = obtenirCampsFiltrables(contenidor);
           const divFiltres = contenidor.querySelector('.filtres');
           actualitzarDatalists(divFiltres, campsFiltrables, novesDades);
-          // --- END OF FIX ---
-
-          console.log('Dades i filtres actualitzats en segon pla per:', contenidor);
-
+          
+          console.log('Dades i filtres actualitzats en segon pla per:', contenidor.id);
         } catch (err) {
           console.error('Error en la recàrrega periòdica:', err);
         }
@@ -47,153 +39,90 @@ function processarTotsElsLectors() {
 }
 
 /**
- * Sets up the container's UI, filters, and event listeners. Runs only ONCE per container.
+ * Configura la interfície, filtres i event listeners del contenidor. S'executa UNA SOLA VEGADA per contenidor.
  */
 async function inicialitzarContenidor(contenidor) {
   const url = contenidor.getAttribute('data-url');
-  const templateId = contenidor.getAttribute('data-template');
-  if (!url || !templateId) return;
+  if (!url) return;
 
   try {
-    // Prepare the basic DOM structure (.filtres, .dades)
     prepararEstructuraContenidor(contenidor);
-
-    // Fetch the initial data
     const dadesInicials = await llegirCSV(url);
-    dadesPerContenidor.set(contenidor, dadesInicials); // Store it
+    dadesPerContenidor.set(contenidor, dadesInicials); // Guarda les dades inicials
 
-    // Get filter configuration
-    const template = document.getElementById(templateId);
-    const campsFiltrables = obtenirCampsFiltrables(contenidor, template);
+    const campsFiltrables = obtenirCampsFiltrables(contenidor);
     const divFiltres = contenidor.querySelector('.filtres');
 
-    // Generate the filter input fields ONCE. This is the key change.
+    // Genera els camps d'input per filtrar UNA SOLA VEGADA
     generarInputsFiltre(divFiltres, campsFiltrables, dadesInicials);
 
-    // Add the input event listener ONCE.
+    // Afegeix l'event listener d'input UNA SOLA VEGADA.
+    // La funció de callback només crida a 'refrescarVista', que sempre agafarà les dades més noves.
     divFiltres.addEventListener('input', () => {
-      // When the user types, just trigger a lightweight view refresh.
       refrescarVista(contenidor);
     });
 
-    // Perform the initial render of the data.
+    // Realitza la primera càrrega visual de les dades
     refrescarVista(contenidor);
-
-  } catch (err) {
-    console.error('Error inicialitzant el contenidor:', contenidor, err);
+  } catch (err)
+ {
+    console.error('Error inicialitzant el contenidor:', contenidor.id, err);
   }
 }
 
 /**
- * Lightweight function to refresh only the data list based on current filters.
- * It does NOT rebuild the inputs. It's called by the user's 'input' event and the setInterval.
+ * Funció clau: Refresca la llista de dades basant-se en els filtres actuals i les DADES MÉS RECENTS.
+ * És cridada tant per l'event listener de l'usuari com per el setInterval.
  */
 function refrescarVista(contenidor) {
   const templateId = contenidor.getAttribute('data-template');
   const template = document.getElementById(templateId);
+  if (!template) return;
+  
   const campsFiltrables = obtenirCampsFiltrables(contenidor, template);
 
-  // Get the most recent data and the current filter values
+  // 1. SEMPRE agafa les dades més recents del magatzem central.
   const dadesActuals = dadesPerContenidor.get(contenidor) || [];
+  // 2. Obté els valors actuals dels camps de filtre.
   const filtres = obtenirFiltresDelFormulari(contenidor);
 
-  // Apply filters and re-render the list
+  // 3. Aplica els filtres i torna a renderitzar la llista.
   const dadesFiltrades = aplicarFiltresDinamics(dadesActuals, filtres, campsFiltrables);
   omplirContenidor(dadesFiltrades, contenidor, template);
 }
 
-
-// --- HELPER FUNCTIONS (with one important improvement) ---
-
 /**
- * Fetches and parses the CSV file.
- * This version uses fetch's built-in cache control
+ * Descarrega i processa el fitxer CSV fent servir l'opció de cache 'reload'.
  */
 async function llegirCSV(url) {
   const resposta = await fetch(url, {
-    // This tells the browser to go to the network and not use any cached version.
-    cache: 'reload' 
+    cache: 'reload' // Demana al navegador que no faci servir la memòria cau.
   });
 
-  if (!resposta.ok) {
-    console.error(`Error en fetch: ${resposta.status} - ${resposta.statusText}. URL sol·licitada: ${url}`);
-    throw new Error(`Error en fetch: ${resposta.status}`);
-  }
-
+  if (!resposta.ok) throw new Error(`Error en fetch: ${resposta.status}`);
   const text = await resposta.text();
-
   const linies = text.trim().split('\n').map(l => l.trim());
   if (linies.length < 2) return [];
-  const capceleres = linies[0].split(',');
+  const capceleres = linies[0].split(',').map(c => c.trim().replace(/"/g, ''));
 
   return linies.slice(1).map(linia => {
-    const valors = linia.split(',');
+    const valors = linia.split(',').map(v => v.trim().replace(/"/g, ''));
     const obj = {};
-    capceleres.forEach((clau, i) => obj[clau.trim()] = valors[i] ? valors[i].trim() : '');
+    capceleres.forEach((clau, i) => obj[clau] = valors[i] || '');
     return obj;
   });
 }
 
-// All other helper functions (obtenirCampsFiltrables, generarInputsFiltre, etc.)
-// can remain exactly as you wrote them. I've included them here for completeness.
-
-function obtenirCampsFiltrables(contenidor, template) {
-  if (contenidor) {
-    const attrContenidor = contenidor.getAttribute('data-filtrable');
-    if (attrContenidor) {
-      return attrContenidor.split(',').map(c => c.trim()).filter(c => c.length > 0);
-    }
-  }
-  if (!template) return [];
-  const attrTemplate = template.getAttribute('data-filtrable');
-  if (!attrTemplate) return [];
-  return attrTemplate.split(',').map(c => c.trim()).filter(c => c.length > 0);
-}
-
 /**
- * Creates the <label>, <input>, and <datalist> elements. Runs only ONCE.
- */
-function generarInputsFiltre(divFiltres, camps, dades) {
-  divFiltres.innerHTML = ''; // Clear any previous elements
-
-  camps.forEach(camp => {
-    const label = document.createElement('label');
-    label.textContent = `${camp}: `;
-
-    const input = document.createElement('input');
-    input.setAttribute('name', camp);
-    input.setAttribute('list', `filtres-${camp}`);
-    input.setAttribute('placeholder', 'Filtrar...');
-
-    const datalist = document.createElement('datalist');
-    datalist.id = `filtres-${camp}`;
-
-    label.appendChild(input);
-    divFiltres.appendChild(label);
-    divFiltres.appendChild(datalist);
-  });
-
-  // Now, populate the newly created datalists with the initial data
-  actualitzarDatalists(divFiltres, camps, dades);
-}
-
-/**
- * Updates the <option>s inside the <datalist> for each filter field.
- * This ensures filter suggestions are always based on the latest data.
+ * Actualitza les <option> dins dels <datalist> de cada camp de filtre.
  */
 function actualitzarDatalists(divFiltres, camps, dades) {
-  // Get unique values for each filterable field from the LATEST data
-  const valorsPerCamp = {};
-  camps.forEach(camp => {
-    valorsPerCamp[camp] = [...new Set(dades.map(d => d[camp]).filter(Boolean))];
-  });
-
-  // For each field, find its datalist and update its options
   camps.forEach(camp => {
     const datalist = divFiltres.querySelector(`#filtres-${camp}`);
     if (datalist) {
-      datalist.innerHTML = ''; // Clear old options
-      valorsPerCamp[camp].forEach(valor => {
+      const valorsUnics = [...new Set(dades.map(d => d[camp]).filter(Boolean))].sort();
+      datalist.innerHTML = ''; // Esborra opcions antigues
+      valorsUnics.forEach(valor => {
         const option = document.createElement('option');
         option.value = valor;
         datalist.appendChild(option);
@@ -202,52 +131,82 @@ function actualitzarDatalists(divFiltres, camps, dades) {
   });
 }
 
-function obtenirFiltresDelFormulari(contenidor) {
-  const inputs = contenidor.querySelectorAll('.filtres input[name]');
-  const filtres = {};
-  inputs.forEach(input => {
-    const valor = input.value.trim();
-    if (valor) filtres[input.name] = valor;
+/**
+ * Crea els elements <label>, <input> i <datalist> per als filtres. S'executa UNA SOLA VEGADA.
+ */
+function generarInputsFiltre(divFiltres, camps, dades) {
+  divFiltres.innerHTML = '';
+  camps.forEach(camp => {
+    const label = document.createElement('label');
+    label.textContent = `${camp}: `;
+    const input = document.createElement('input');
+    input.setAttribute('name', camp);
+    input.setAttribute('list', `filtres-${camp}`);
+    input.setAttribute('placeholder', `Filtrar per ${camp}...`);
+    const datalist = document.createElement('datalist');
+    datalist.id = `filtres-${camp}`;
+    label.appendChild(input);
+    divFiltres.appendChild(label);
+    divFiltres.appendChild(datalist);
   });
-  return filtres;
+  actualitzarDatalists(divFiltres, camps, dades);
+}
+
+// --- ALTRES FUNCIONS DE SUPORT (Helpers) ---
+
+function obtenirCampsFiltrables(contenidor, template) {
+    const attrContenidor = contenidor.getAttribute('data-filtrable');
+    if (attrContenidor) return attrContenidor.split(',').map(c => c.trim()).filter(Boolean);
+    if (!template) return [];
+    const attrTemplate = template.getAttribute('data-filtrable');
+    return attrTemplate ? attrTemplate.split(',').map(c => c.trim()).filter(Boolean) : [];
+}
+
+function obtenirFiltresDelFormulari(contenidor) {
+    const inputs = contenidor.querySelectorAll('.filtres input[name]');
+    const filtres = {};
+    inputs.forEach(input => {
+        const valor = input.value.trim();
+        if (valor) filtres[input.name] = valor;
+    });
+    return filtres;
 }
 
 function aplicarFiltresDinamics(dades, filtres, campsFiltrables) {
-  return dades.filter(item => {
-    return Object.entries(filtres).every(([camp, valor]) => {
-      if (!campsFiltrables.includes(camp)) return true;
-      return item[camp]?.toLowerCase().includes(valor.toLowerCase());
+    return dades.filter(item => {
+        return Object.entries(filtres).every(([camp, valor]) => {
+            if (!campsFiltrables.includes(camp)) return true;
+            return item[camp]?.toLowerCase().includes(valor.toLowerCase());
+        });
     });
-  });
 }
 
 function omplirContenidor(dades, contenidor, template) {
-  if (!template) return;
-  const divDades = contenidor.querySelector('.dades');
-  if (!divDades) return;
-  divDades.innerHTML = '';
-  dades.forEach(item => {
-    const clone = template.content.cloneNode(true);
-    for (const clau in item) {
-      const el = clone.querySelector(`.${clau}`);
-      if (el) el.textContent = item[clau];
-    }
-    divDades.appendChild(clone);
-  });
+    if (!template) return;
+    const divDades = contenidor.querySelector('.dades');
+    if (!divDades) return;
+    divDades.innerHTML = '';
+    dades.forEach(item => {
+        const clone = template.content.cloneNode(true);
+        for (const clau in item) {
+            const el = clone.querySelector(`.${clau}`);
+            if (el) el.textContent = item[clau];
+        }
+        divDades.appendChild(clone);
+    });
 }
 
 function prepararEstructuraContenidor(contenidor) {
-  let divFiltres = contenidor.querySelector('.filtres');
-  if (!divFiltres) {
-    divFiltres = document.createElement('div');
-    divFiltres.classList.add('filtres');
-    contenidor.appendChild(divFiltres);
-  }
-  let divDades = contenidor.querySelector('.dades');
-  if (!divDades) {
-    divDades = document.createElement('div');
-    divDades.classList.add('dades');
-    contenidor.appendChild(divDades);
-  }
-  return { divFiltres, divDades };
+    let divFiltres = contenidor.querySelector('.filtres');
+    if (!divFiltres) {
+        divFiltres = document.createElement('div');
+        divFiltres.classList.add('filtres');
+        contenidor.prepend(divFiltres); // Posa els filtres al principi
+    }
+    let divDades = contenidor.querySelector('.dades');
+    if (!divDades) {
+        divDades = document.createElement('div');
+        divDades.classList.add('dades');
+        contenidor.appendChild(divDades);
+    }
 }
