@@ -22,7 +22,8 @@ async function actualitzarContenidor(contenidor) {
 
   try {
     const dades = await llegirCSV(url);
-    const campsFiltrables = obtenirCampsFiltrables(contenidor, templateId);
+    const contenidors = document.getElementById(templateId);
+    const campsFiltrables = obtenirCampsFiltrables(contenidor, template);
     const { divFiltres } = prepararEstructuraContenidor(contenidor);
 
     // 🔸 1. Guarda els valors actuals del filtre
@@ -42,7 +43,7 @@ async function actualitzarContenidor(contenidor) {
       divFiltres.addEventListener('input', () => {
         const filtres = obtenirFiltresDelFormulari(contenidor);
         const dadesFiltrades = aplicarFiltresDinamics(dades, filtres, campsFiltrables);
-        omplirContenidor(dadesFiltrades, contenidor, templateId);
+        omplirContenidor(dadesFiltrades, contenidor, template);
       });
       contenidor.dataset.filtreAssignat = 'true';
     }
@@ -50,7 +51,7 @@ async function actualitzarContenidor(contenidor) {
     // 🔸 5. Aplica els filtres actuals
     const filtres = obtenirFiltresDelFormulari(contenidor);
     const dadesFiltrades = aplicarFiltresDinamics(dades, filtres, campsFiltrables);
-    omplirContenidor(dadesFiltrades, contenidor, templateId);
+    omplirContenidor(dadesFiltrades, contenidor, template);
 
   } catch (err) {
     console.error('Error carregant CSV per contenidor:', contenidor, err);
