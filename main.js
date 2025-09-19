@@ -15,48 +15,61 @@ function processarLectors() {
   });
 }
 
-async function actualitzarContenidor(contenidor) {
-  const url = contenidor.getAttribute('data-url');
-  const templateId = contenidor.getAttribute('data-template');
-  if (!url || !templateId) return;
+function generarInputsFiltre(divFiltres, camps, dades) {
+  // Convertir llista de valors únics per cada camp
+  const valorsPerCamp = {};
+  camps.forEach(camp => {
+    valorsPerCamp[camp] = [...new Set(dades.map(d => d[camp]).filter(Boolean))];
+  });
 
-  try {
-    const dades = await llegirCSV(url);
-    const template = document.getElementById(templateId);
-    const campsFiltrables = obtenirCampsFiltrables(contenidor, template);
-    const { divFiltres } = prepararEstructuraContenidor(contenidor);
+  // Crear un map per accedir als inputs existents
+  const inputsExistents = {};
+  divFiltres.querySelectorAll('input[name]').forEach(input => {
+    inputsExistents[input.name] = input;
+  });
 
-    // 🔸 1. Guarda els valors actuals del filtre
-    const valorsPreexistents = obtenirFiltresDelFormulari(contenidor);
+  camps.forEach(camp => {
+    const valorsUnics = valorsPerCamp[camp];
 
-    // 🔸 2. Regenera inputs de filtre
-    generarInputsFiltre(divFiltres, campsFiltrables, dades);
+    let input = inputsExistents[camp];
+    let label, datalist;
 
-    // 🔸 3. Torna a aplicar els valors als inputs
-    Object.entries(valorsPreexistents).forEach(([camp, valor]) => {
-      const input = divFiltres.querySelector(`input[name="${camp}"]`);
-      if (input) input.value = valor;
-    });
+    if (!input) {
+      // Crear nous elements si no existeixen
+      label = document.createElement('label');
+      label.textContent = `${camp}: `;
 
-    // 🔸 4. Assigna l'event listener només una vegada
-    if (!contenidor.dataset.filtreAssignat) {
-      divFiltres.addEventListener('input', () => {
-        const filtres = obtenirFiltresDelFormulari(contenidor);
-        const dadesFiltrades = aplicarFiltresDinamics(dades, filtres, campsFiltrables);
-        omplirContenidor(dadesFiltrades, contenidor, template);
-      });
-      contenidor.dataset.filtreAssignat = 'true';
+      input = document.createElement('input');
+      input.setAttribute('name', camp);
+      input.setAttribute('list', `filtres-${camp}`);
+      input.setAttribute('placeholder', 'Filtrar...');
+
+      datalist = document.createElement('datalist');
+      datalist.id = `filtres-${camp}`;
+
+      label.appendChild(input);
+      divFiltres.appendChild(label);
+      divFiltres.appendChild(datalist);
+    } else {
+      // Si ja existeix, només cal actualitzar el datalist
+      datalist = divFiltres.querySelector(`#filtres-${camp}`);
+      if (!datalist) {
+        datalist = document.createElement('datalist');
+        datalist.id = `filtres-${camp}`;
+        divFiltres.appendChild(datalist);
+      }
     }
 
-    // 🔸 5. Aplica els filtres actuals
-    const filtres = obtenirFiltresDelFormulari(contenidor);
-    const dadesFiltrades = aplicarFiltresDinamics(dades, filtres, campsFiltrables);
-    omplirContenidor(dadesFiltrades, contenidor, template);
-
-  } catch (err) {
-    console.error('Error carregant CSV per contenidor:', contenidor, err);
-  }
+    // Actualitzar el datalist amb nous valors
+    datalist.innerHTML = '';
+    valorsUnics.forEach(valor => {
+      const option = document.createElement('option');
+      option.value = valor;
+      datalist.appendChild(option);
+    });
+  });
 }
+
 
 async function llegirCSV(url) {
   const resposta = await fetch(url);
