@@ -22,13 +22,21 @@ function processarTotsElsLectors() {
           const url = contenidor.getAttribute('data-url');
           if (!url) return;
 
-          // Fetch new data in the background.
+          // Fetch new data
           const novesDades = await llegirCSV(url);
-          dadesPerContenidor.set(contenidor, novesDades); // Update the shared data
+          dadesPerContenidor.set(contenidor, novesDades); // Update shared data
 
-          // Trigger a lightweight refresh of the view.
+          // --- FIX APPLIED HERE ---
+          // 1. Refresh the main data view (as before)
           refrescarVista(contenidor);
-          console.log('Dades actualitzades en segon pla per:', contenidor);
+          
+          // 2. ALSO refresh the filter suggestion dropdowns with the new data
+          const campsFiltrables = obtenirCampsFiltrables(contenidor);
+          const divFiltres = contenidor.querySelector('.filtres');
+          actualitzarDatalists(divFiltres, campsFiltrables, novesDades);
+          // --- END OF FIX ---
+
+          console.log('Dades i filtres actualitzats en segon pla per:', contenidor);
 
         } catch (err) {
           console.error('Error en la recàrrega periòdica:', err);
@@ -142,16 +150,13 @@ function obtenirCampsFiltrables(contenidor, template) {
   return attrTemplate.split(',').map(c => c.trim()).filter(c => c.length > 0);
 }
 
+/**
+ * Creates the <label>, <input>, and <datalist> elements. Runs only ONCE.
+ */
 function generarInputsFiltre(divFiltres, camps, dades) {
-  divFiltres.innerHTML = ''; // Clear previous inputs if any (safer for initialization)
-  const valorsPerCamp = {};
-  camps.forEach(camp => {
-    valorsPerCamp[camp] = [...new Set(dades.map(d => d[camp]).filter(Boolean))];
-  });
+  divFiltres.innerHTML = ''; // Clear any previous elements
 
   camps.forEach(camp => {
-    const valorsUnics = valorsPerCamp[camp];
-
     const label = document.createElement('label');
     label.textContent = `${camp}: `;
 
@@ -162,16 +167,38 @@ function generarInputsFiltre(divFiltres, camps, dades) {
 
     const datalist = document.createElement('datalist');
     datalist.id = `filtres-${camp}`;
-    
-    valorsUnics.forEach(valor => {
-      const option = document.createElement('option');
-      option.value = valor;
-      datalist.appendChild(option);
-    });
 
     label.appendChild(input);
     divFiltres.appendChild(label);
     divFiltres.appendChild(datalist);
+  });
+
+  // Now, populate the newly created datalists with the initial data
+  actualitzarDatalists(divFiltres, camps, dades);
+}
+
+/**
+ * Updates the <option>s inside the <datalist> for each filter field.
+ * This ensures filter suggestions are always based on the latest data.
+ */
+function actualitzarDatalists(divFiltres, camps, dades) {
+  // Get unique values for each filterable field from the LATEST data
+  const valorsPerCamp = {};
+  camps.forEach(camp => {
+    valorsPerCamp[camp] = [...new Set(dades.map(d => d[camp]).filter(Boolean))];
+  });
+
+  // For each field, find its datalist and update its options
+  camps.forEach(camp => {
+    const datalist = divFiltres.querySelector(`#filtres-${camp}`);
+    if (datalist) {
+      datalist.innerHTML = ''; // Clear old options
+      valorsPerCamp[camp].forEach(valor => {
+        const option = document.createElement('option');
+        option.value = valor;
+        datalist.appendChild(option);
+      });
+    }
   });
 }
 
