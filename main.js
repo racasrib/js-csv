@@ -15,6 +15,48 @@ function processarLectors() {
   });
 }
 
+async function actualitzarContenidor(contenidor) {
+  const url = contenidor.getAttribute('data-url');
+  const templateId = contenidor.getAttribute('data-template');
+  if (!url || !templateId) return;
+
+  try {
+    const dades = await llegirCSV(url);
+    const campsFiltrables = obtenirCampsFiltrables(contenidor, templateId);
+    const { divFiltres } = prepararEstructuraContenidor(contenidor);
+
+    // 🔸 1. Guarda els valors actuals del filtre
+    const valorsPreexistents = obtenirFiltresDelFormulari(contenidor);
+
+    // 🔸 2. Regenera inputs de filtre
+    generarInputsFiltre(divFiltres, campsFiltrables, dades);
+
+    // 🔸 3. Torna a aplicar els valors als inputs
+    Object.entries(valorsPreexistents).forEach(([camp, valor]) => {
+      const input = divFiltres.querySelector(`input[name="${camp}"]`);
+      if (input) input.value = valor;
+    });
+
+    // 🔸 4. Assigna l'event listener només una vegada
+    if (!contenidor.dataset.filtreAssignat) {
+      divFiltres.addEventListener('input', () => {
+        const filtres = obtenirFiltresDelFormulari(contenidor);
+        const dadesFiltrades = aplicarFiltresDinamics(dades, filtres, campsFiltrables);
+        omplirContenidor(dadesFiltrades, contenidor, templateId);
+      });
+      contenidor.dataset.filtreAssignat = 'true';
+    }
+
+    // 🔸 5. Aplica els filtres actuals
+    const filtres = obtenirFiltresDelFormulari(contenidor);
+    const dadesFiltrades = aplicarFiltresDinamics(dades, filtres, campsFiltrables);
+    omplirContenidor(dadesFiltrades, contenidor, templateId);
+
+  } catch (err) {
+    console.error('Error carregant CSV per contenidor:', contenidor, err);
+  }
+}
+
 function generarInputsFiltre(divFiltres, camps, dades) {
   // Convertir llista de valors únics per cada camp
   const valorsPerCamp = {};
