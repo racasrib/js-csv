@@ -99,18 +99,23 @@ function refrescarVista(contenidor) {
 
 /**
  * Fetches and parses the CSV file.
- * IMPROVED: Added cache-busting to ensure fresh data is always loaded.
+ * This version uses fetch's built-in cache control
  */
 async function llegirCSV(url) {
-  // Add a timestamp to the URL to prevent the browser from using a cached version
-  const urlAmbCacheBust = `${url}?t=${new Date().getTime()}`;
-  
-  const resposta = await fetch(urlAmbCacheBust);
-  if (!resposta.ok) throw new Error(`Error en fetch: ${resposta.status}`);
+  const resposta = await fetch(url, {
+    // This tells the browser to go to the network and not use any cached version.
+    cache: 'reload' 
+  });
+
+  if (!resposta.ok) {
+    console.error(`Error en fetch: ${resposta.status} - ${resposta.statusText}. URL sol·licitada: ${url}`);
+    throw new Error(`Error en fetch: ${resposta.status}`);
+  }
+
   const text = await resposta.text();
 
   const linies = text.trim().split('\n').map(l => l.trim());
-  if (linies.length < 2) return []; // Handle empty or header-only files
+  if (linies.length < 2) return [];
   const capceleres = linies[0].split(',');
 
   return linies.slice(1).map(linia => {
