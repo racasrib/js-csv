@@ -22,7 +22,7 @@ async function actualitzarContenidor(contenidor) {
 
   try {
     const dades = await llegirCSV(url);
-    const contenidors = document.getElementById(templateId);
+    const template = document.getElementById(templateId);
     const campsFiltrables = obtenirCampsFiltrables(contenidor, template);
     const { divFiltres } = prepararEstructuraContenidor(contenidor);
 
