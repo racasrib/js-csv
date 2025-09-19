@@ -60,17 +60,20 @@ async function llegirCSV(url) {
 }
 
 function obtenirCampsFiltrables(contenidor, idTemplate) {
-  const attrContenidor = contenidor.getAttribute('data-filtrable');
-  if (attrContenidor) {
-    return attrContenidor.split(',').map(c => c.trim()).filter(c => c.length > 0);
+  if (contenidor) {
+    const attrContenidor = contenidor.getAttribute('data-filtrable');
+    if (attrContenidor) {
+      return attrContenidor.split(',').map(c => c.trim()).filter(c => c.length > 0);
+    }
   }
-  // fallback: llegir del template
+
   const template = document.getElementById(idTemplate);
   if (!template) return [];
   const attrTemplate = template.getAttribute('data-filtrable');
   if (!attrTemplate) return [];
   return attrTemplate.split(',').map(c => c.trim()).filter(c => c.length > 0);
 }
+
 
 function generarInputsFiltre(divFiltres, camps, dades) {
   divFiltres.innerHTML = ''; // Reiniciem
