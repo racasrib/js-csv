@@ -57,6 +57,37 @@ async function actualitzarContenidor(contenidor) {
   }
 }
 
+async function llegirCSV(url) {
+  const resposta = await fetch(url);
+  if (!resposta.ok) throw new Error(`Error en fetch: ${resposta.status}`);
+  const text = await resposta.text();
+
+  const linies = text.trim().split('\n').map(l => l.trim());
+  const capceleres = linies[0].split(',');
+
+  return linies.slice(1).map(linia => {
+    const valors = linia.split(',');
+    const obj = {};
+    capceleres.forEach((clau, i) => obj[clau] = valors[i]);
+    return obj;
+  });
+}
+
+function obtenirCampsFiltrables(contenidor, template) {
+  if (contenidor) {
+    const attrContenidor = contenidor.getAttribute('data-filtrable');
+    if (attrContenidor) {
+      return attrContenidor.split(',').map(c => c.trim()).filter(c => c.length > 0);
+    }
+  }
+
+  if (!template) return [];
+  const attrTemplate = template.getAttribute('data-filtrable');
+  if (!attrTemplate) return [];
+  return attrTemplate.split(',').map(c => c.trim()).filter(c => c.length > 0);
+}
+
+
 function generarInputsFiltre(divFiltres, camps, dades) {
   // Convertir llista de valors únics per cada camp
   const valorsPerCamp = {};
@@ -111,68 +142,6 @@ function generarInputsFiltre(divFiltres, camps, dades) {
     });
   });
 }
-
-
-async function llegirCSV(url) {
-  const resposta = await fetch(url);
-  if (!resposta.ok) throw new Error(`Error en fetch: ${resposta.status}`);
-  const text = await resposta.text();
-
-  const linies = text.trim().split('\n').map(l => l.trim());
-  const capceleres = linies[0].split(',');
-
-  return linies.slice(1).map(linia => {
-    const valors = linia.split(',');
-    const obj = {};
-    capceleres.forEach((clau, i) => obj[clau] = valors[i]);
-    return obj;
-  });
-}
-
-function obtenirCampsFiltrables(contenidor, template) {
-  if (contenidor) {
-    const attrContenidor = contenidor.getAttribute('data-filtrable');
-    if (attrContenidor) {
-      return attrContenidor.split(',').map(c => c.trim()).filter(c => c.length > 0);
-    }
-  }
-
-  if (!template) return [];
-  const attrTemplate = template.getAttribute('data-filtrable');
-  if (!attrTemplate) return [];
-  return attrTemplate.split(',').map(c => c.trim()).filter(c => c.length > 0);
-}
-
-
-function generarInputsFiltre(divFiltres, camps, dades) {
-  divFiltres.innerHTML = ''; // Reiniciem
-
-  camps.forEach(camp => {
-    const valorsUnics = [...new Set(dades.map(d => d[camp]).filter(Boolean))];
-
-    const label = document.createElement('label');
-    label.textContent = `${camp}: `;
-
-    const input = document.createElement('input');
-    input.setAttribute('name', camp);
-    input.setAttribute('list', `filtres-${camp}`);
-    input.setAttribute('placeholder', 'Filtrar...');
-
-    const datalist = document.createElement('datalist');
-    datalist.id = `filtres-${camp}`;
-
-    valorsUnics.forEach(valor => {
-      const option = document.createElement('option');
-      option.value = valor;
-      datalist.appendChild(option);
-    });
-
-    label.appendChild(input);
-    divFiltres.appendChild(label);
-    divFiltres.appendChild(datalist);
-  });
-}
-
 
 function obtenirFiltresDelFormulari(contenidor) {
   const inputs = contenidor.querySelectorAll('.filtres input[name]');
