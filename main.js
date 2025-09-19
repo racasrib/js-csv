@@ -26,15 +26,29 @@ async function actualitzarContenidor(contenidor) {
     const campsFiltrables = obtenirCampsFiltrables(contenidor, template);
     const { divFiltres } = prepararEstructuraContenidor(contenidor);
 
+    // 🔸 1. Guarda els valors actuals del filtre
+    const valorsPreexistents = obtenirFiltresDelFormulari(contenidor);
+
+    // 🔸 2. Regenera inputs de filtre
     generarInputsFiltre(divFiltres, campsFiltrables, dades);
 
-    divFiltres.addEventListener('input', () => {
-      const filtres = obtenirFiltresDelFormulari(contenidor);
-      const dadesFiltrades = aplicarFiltresDinamics(dades, filtres, campsFiltrables);
-      omplirContenidor(dadesFiltrades, contenidor, template);
+    // 🔸 3. Torna a aplicar els valors als inputs
+    Object.entries(valorsPreexistents).forEach(([camp, valor]) => {
+      const input = divFiltres.querySelector(`input[name="${camp}"]`);
+      if (input) input.value = valor;
     });
 
-    // Inicial
+    // 🔸 4. Assigna l'event listener només una vegada
+    if (!contenidor.dataset.filtreAssignat) {
+      divFiltres.addEventListener('input', () => {
+        const filtres = obtenirFiltresDelFormulari(contenidor);
+        const dadesFiltrades = aplicarFiltresDinamics(dades, filtres, campsFiltrables);
+        omplirContenidor(dadesFiltrades, contenidor, template);
+      });
+      contenidor.dataset.filtreAssignat = 'true';
+    }
+
+    // 🔸 5. Aplica els filtres actuals
     const filtres = obtenirFiltresDelFormulari(contenidor);
     const dadesFiltrades = aplicarFiltresDinamics(dades, filtres, campsFiltrables);
     omplirContenidor(dadesFiltrades, contenidor, template);
