@@ -22,7 +22,8 @@ async function actualitzarContenidor(contenidor) {
 
   try {
     const dades = await llegirCSV(url);
-    const campsFiltrables = obtenirCampsFiltrables(templateId);
+    const template = document.getElementById(templateId);
+    const campsFiltrables = obtenirCampsFiltrables(contenidor, template);
     const { divFiltres } = prepararEstructuraContenidor(contenidor);
 
     generarInputsFiltre(divFiltres, campsFiltrables, dades);
@@ -30,13 +31,13 @@ async function actualitzarContenidor(contenidor) {
     divFiltres.addEventListener('input', () => {
       const filtres = obtenirFiltresDelFormulari(contenidor);
       const dadesFiltrades = aplicarFiltresDinamics(dades, filtres, campsFiltrables);
-      omplirContenidor(dadesFiltrades, contenidor, templateId);
+      omplirContenidor(dadesFiltrades, contenidor, template);
     });
 
     // Inicial
     const filtres = obtenirFiltresDelFormulari(contenidor);
     const dadesFiltrades = aplicarFiltresDinamics(dades, filtres, campsFiltrables);
-    omplirContenidor(dadesFiltrades, contenidor, templateId);
+    omplirContenidor(dadesFiltrades, contenidor, template);
 
   } catch (err) {
     console.error('Error carregant CSV per contenidor:', contenidor, err);
@@ -59,7 +60,7 @@ async function llegirCSV(url) {
   });
 }
 
-function obtenirCampsFiltrables(contenidor, idTemplate) {
+function obtenirCampsFiltrables(contenidor, template) {
   if (contenidor) {
     const attrContenidor = contenidor.getAttribute('data-filtrable');
     if (attrContenidor) {
@@ -67,7 +68,6 @@ function obtenirCampsFiltrables(contenidor, idTemplate) {
     }
   }
 
-  const template = document.getElementById(idTemplate);
   if (!template) return [];
   const attrTemplate = template.getAttribute('data-filtrable');
   if (!attrTemplate) return [];
@@ -125,8 +125,7 @@ function aplicarFiltresDinamics(dades, filtres, campsFiltrables) {
 }
 
 
-function omplirContenidor(dades, contenidor, idTemplate) {
-  const template = document.getElementById(idTemplate);
+function omplirContenidor(dades, contenidor, template) {
   if (!template) return;
 
   const divDades = contenidor.querySelector('.dades');
