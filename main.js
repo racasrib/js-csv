@@ -267,11 +267,13 @@ function omplirContenidor(dades, contenidor, template) {
 
             if (!el) continue;
 
-            for (const tipus in item[clau]) {
-              if(tipus){
+            if (typeof item[clau] === 'string') {
+              // Sense prefix: textContent
+              el.textContent = item[clau];
+            } else {
+              // Amb prefix: assignem atributs segons tipus
+              for (const tipus in item[clau]) {
                 el.setAttribute(tipus, item[clau][tipus]);
-              }else{
-                el.textContent=item[clau][tipus];
               }
             }
             
