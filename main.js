@@ -50,7 +50,7 @@ function configurarRefrescPeriodic(contenidor, intervalMs) {
       // Crida l'async de lectura CSV
       const novesDades = await llegirCSV(url);
 
-      console.log("Noves dades rebudes: "+novesDades);
+      console.log("Noves dades rebudes ("+momentCrida+"): "+novesDades);
 
       // Només actualitza si cap crida més recent ha començat des d'aleshores
       if (últimaCridaPerContenidor.get(contenidor) !== momentCrida) {
