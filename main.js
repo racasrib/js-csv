@@ -3,39 +3,72 @@ window.addEventListener('DOMContentLoaded', processarTotsElsLectors);
 // Magatzem central per a les dades més recents de cada contenidor.
 const dadesPerContenidor = new Map();
 
+// Mapa per fer tracking del moment d'última crida per contenidor
+const últimaCridaPerContenidor = new Map();
+
 /**
  * Troba tots els components lectors de CSV i els inicialitza.
  */
 function processarTotsElsLectors() {
   const contenidors = document.querySelectorAll('.lector-csv');
-  contenidors.forEach(contenidor => {
-    // 1. Inicialitza la interfície de cada contenidor UNA SOLA VEGADA.
-    inicialitzarContenidor(contenidor);
+  contenidors.forEach(inicialitzarLectorCSV);
+}
 
-    // 2. Configura el refresc periòdic si està especificat.
-    const refresh = parseInt(contenidor.getAttribute('data-refresh'), 10);
-    if (!isNaN(refresh) && refresh > 0) {
-      setInterval(async () => {
-        try {
-          const url = contenidor.getAttribute('data-url');
-          if (!url) return;
+/**
+ * Inicialitza un contenidor lector de CSV i, si cal, configura refresc periòdic.
+ */
+function inicialitzarLectorCSV(contenidor) {
+  inicialitzarContenidor(contenidor); // Pas 1: preparar la interfície inicial
 
-          const novesDades = await llegirCSV(url);
-          dadesPerContenidor.set(contenidor, novesDades); // Actualitza el magatzem central
+  const refresh = obtenirIntervalDeRefresc(contenidor);
+  if (refresh > 0) {
+    configurarRefrescPeriodic(contenidor, refresh);
+  }
+}
 
-          // Refresca la vista de dades i els suggeriments dels filtres
-          refrescarVista(contenidor);
-          const campsFiltrables = obtenirCampsFiltrables(contenidor);
-          const divFiltres = contenidor.querySelector('.filtres');
-          actualitzarDatalists(divFiltres, campsFiltrables, novesDades);
-          
-          console.log('Dades i filtres actualitzats en segon pla per:', contenidor.id);
-        } catch (err) {
-          console.error('Error en la recàrrega periòdica:', err);
-        }
-      }, refresh);
+/**
+ * Extreu i valida l’interval de refresc del DOM.
+ */
+function obtenirIntervalDeRefresc(contenidor) {
+  const valor = parseInt(contenidor.getAttribute('data-refresh'), 10);
+  return isNaN(valor) ? 0 : valor;
+}
+
+/**
+ * Configura la recàrrega periòdica de dades CSV per a un contenidor.
+ */
+function configurarRefrescPeriodic(contenidor, intervalMs) {
+  setInterval(async () => {
+    try {
+      const url = contenidor.getAttribute('data-url');
+      if (!url) return;
+
+      // Marca el moment d'inici de la crida
+      const momentCrida = Date.now();
+      últimaCridaPerContenidor.set(contenidor, momentCrida);
+
+      // Crida l'async de lectura CSV
+      const novesDades = await llegirCSV(url);
+
+      // Només actualitza si cap crida més recent ha començat des d'aleshores
+      if (últimaCridaPerContenidor.get(contenidor) !== momentCrida) {
+        console.log('Resposta obsoleta ignorada per contenidor:', contenidor.id);
+        return;
+      }
+      
+      dadesPerContenidor.set(contenidor, novesDades);
+
+      refrescarVista(contenidor);
+
+      const campsFiltrables = obtenirCampsFiltrables(contenidor);
+      const divFiltres = contenidor.querySelector('.filtres');
+      actualitzarDatalists(divFiltres, campsFiltrables, novesDades);
+
+      console.log('Dades i filtres actualitzats en segon pla per:', contenidor.id);
+    } catch (err) {
+      console.error('Error en la recàrrega periòdica:', err);
     }
-  });
+  }, intervalMs);
 }
 
 /**
@@ -92,17 +125,33 @@ function refrescarVista(contenidor) {
 }
 
 /**
- * Descarrega i processa el fitxer CSV fent servir l'opció de cache 'reload'.
+ * Descarrega i processa el fitxer CSV
  */
-async function llegirCSV(url) {
-  const resposta = await fetch(url, {
-    cache: 'reload' // Demana al navegador que no faci servir la memòria cau.
-  });
+async function llegirCSV(urlBase) {
+  const textCSV = await descarregarCSV(urlBase);
+  return parsejarCSV(textCSV);
+}
 
+/**
+ * Fa fetch del CSV i retorna el seu contingut en text
+ */
+async function descarregarCSV(urlBase) {
+  const url = new URL(urlBase);
+  url.searchParams.set('_', Date.now()); // Cache-busting
+
+  const resposta = await fetch(url.toString(), { cache: 'no-store' });
   if (!resposta.ok) throw new Error(`Error en fetch: ${resposta.status}`);
-  const text = await resposta.text();
+
+  return await resposta.text();
+}
+
+/**
+ * Processa un text CSV simple en un array d'objectes
+ */
+function parsejarCSV(text) {
   const linies = text.trim().split('\n').map(l => l.trim());
   if (linies.length < 2) return [];
+
   const capceleres = linies[0].split(',').map(c => c.trim().replace(/"/g, ''));
 
   return linies.slice(1).map(linia => {
