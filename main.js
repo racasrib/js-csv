@@ -1,5 +1,8 @@
 window.addEventListener('DOMContentLoaded', processarTotsElsLectors);
 
+// Simulem l'espai de noms
+const prefix = 'js-csv__';
+
 // Magatzem central per a les dades més recents de cada contenidor.
 const dadesPerContenidor = new Map();
 
@@ -154,15 +157,35 @@ function parsejarCSV(text) {
   const linies = text.trim().split('\n').map(l => l.trim());
   if (linies.length < 2) return [];
 
-  const capceleres = linies[0].split(',').map(c => c.trim().replace(/"/g, ''));
+  // Processar la capçalera només UNA vegada
+  const capceleresBrutes = linies[0].split(',').map(c => c.trim().replace(/"/g, ''));
+  const capceleres = capceleresBrutes.map(camp => {
+    if (camp.includes('__')) {
+      const [tipus, nom] = camp.split('__');
+      return { tipus, nom };
+    } else {
+      return { tipus: null, nom: camp };
+    }
+  });
 
   return linies.slice(1).map(linia => {
     const valors = linia.split(',').map(v => v.trim().replace(/"/g, ''));
+
     const obj = {};
-    capceleres.forEach((clau, i) => obj[clau] = valors[i] || '');
+    capceleres.forEach(({ tipus, nom }, i) => {
+      const valor = valors[i] || '';
+      if (tipus) {
+        if (!obj[nom]) obj[nom] = {};
+        obj[nom][tipus] = valor;
+      } else {
+        obj[nom] = valor;
+      }
+    });
+
     return obj;
   });
 }
+
 
 /**
  * Actualitza les <option> dins dels <datalist> de cada camp de filtre.
@@ -240,8 +263,20 @@ function omplirContenidor(dades, contenidor, template) {
     dades.forEach(item => {
         const clone = template.content.cloneNode(true);
         for (const clau in item) {
-            const el = clone.querySelector(`.${clau}`);
-            if (el) el.textContent = item[clau];
+            const el = clone.querySelector(`.${prefix}${clau}`);
+
+            if (!el) continue;
+
+            if (typeof item[clau] === 'string') {
+              // Sense prefix: textContent
+              el.textContent = item[clau];
+            } else {
+              // Amb prefix: assignem atributs segons tipus
+              for (const tipus in item[clau]) {
+                el.setAttribute(tipus, item[clau][tipus]);
+              }
+            }
+            
         }
         divDades.appendChild(clone);
     });
