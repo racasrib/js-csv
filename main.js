@@ -66,7 +66,7 @@ function configurarRefrescPeriodic(contenidor, intervalMs) {
       const divFiltres = contenidor.querySelector('.filtres');
       actualitzarDatalists(divFiltres, campsFiltrables, novesDades);
 
-      console.log('Dades i filtres actualitzats en segon pla:', contenidor.getAttribute("data-src"), "=", json.stringify(dadesPerContenidor.get(contenidor)));
+      console.log('Dades i filtres actualitzats en segon pla:', contenidor.getAttribute("data-src"), "=", JSON.stringify(dadesPerContenidor.get(contenidor)));
     } catch (err) {
       console.error('Error en la recàrrega periòdica:', err);
     }
