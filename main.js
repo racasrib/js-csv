@@ -267,16 +267,14 @@ function omplirContenidor(dades, contenidor, template) {
 
             if (!el) continue;
 
-            if (!item[clau][tipus]) {
-              // Sense prefix: textContent
-              el.textContent = item[clau];
-            } else {
-              // Amb prefix: assignem atributs segons tipus
-              for (const tipus in item[clau]) {
+            for (const tipus in item[clau]) {
+              if(tipus){
                 el.setAttribute(tipus, item[clau][tipus]);
+              }else{
+                el.textContent=item[clau][tipus];
               }
             }
-
+            
         }
         divDades.appendChild(clone);
     });
