@@ -267,7 +267,7 @@ function omplirContenidor(dades, contenidor, template) {
 
             if (!el) continue;
 
-            if (typeof item[clau] === 'string') {
+            if (!item[clau][tipus]) {
               // Sense prefix: textContent
               el.textContent = item[clau];
             } else {
@@ -276,7 +276,7 @@ function omplirContenidor(dades, contenidor, template) {
                 el.setAttribute(tipus, item[clau][tipus]);
               }
             }
-            
+
         }
         divDades.appendChild(clone);
     });
