@@ -50,6 +50,8 @@ function configurarRefrescPeriodic(contenidor, intervalMs) {
       // Crida l'async de lectura CSV
       const novesDades = await llegirCSV(url);
 
+      console.log("Noves dades rebudes: "+novesDades);
+
       // Només actualitza si cap crida més recent ha començat des d'aleshores
       if (últimaCridaPerContenidor.get(contenidor) !== momentCrida) {
         console.log('Resposta obsoleta ignorada per contenidor:', contenidor);
@@ -64,7 +66,7 @@ function configurarRefrescPeriodic(contenidor, intervalMs) {
       const divFiltres = contenidor.querySelector('.filtres');
       actualitzarDatalists(divFiltres, campsFiltrables, novesDades);
 
-      console.log('Dades i filtres actualitzats en segon pla per:', contenidor);
+      console.log('Dades i filtres actualitzats en segon pla:', contenidor.getAttribute("data-src"), "=", dadesPerContenidor.get(contenidor));
     } catch (err) {
       console.error('Error en la recàrrega periòdica:', err);
     }
